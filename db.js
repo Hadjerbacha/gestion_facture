@@ -1,42 +1,7 @@
-/*const { MongoClient } = require('mongodb');
-
-const uri = "mongodb+srv://hadjer:bachasais123@cluster0.1llqcfq.mongodb.net/";
-const client = new MongoClient(uri);
-
-async function main() {
-    try {
-        // Connect to the MongoDB cluster
-        await client.connect();
-
-        // Make the appropriate DB calls
-        await listDatabases(client);
-
-    } catch (e) {
-        console.error(e);
-    } finally {
-        // Close the connection to the MongoDB cluster
-        await client.close();
-    }
-}
-
-
-  Print the names of all available databases
-  @param {MongoClient} client A MongoClient that is connected to a cluster
- 
-async function listDatabases(client) {
-    const databasesList = await client.db().admin().listDatabases();
-
-    console.log("Databases:");
-    databasesList.databases.forEach(db => console.log(` - ${db.name}`));
-}
-
-module.exports = main;
- */
 // db.js
 const mongoose = require('mongoose');
 
-// Remplacez "mongodb://localhost:27017/sonatrach" par votre URL de connexion
-const mongoURI = "mongodb+srv://hadjer:bachasais123@cluster0.1llqcfq.mongodb.net/";
+const mongoURI = "mongodb+srv://hadjer:bachasais123@cluster0.1llqcfq.mongodb.net/sonatrach";
 
 const connectDB = async () => {
   try {
