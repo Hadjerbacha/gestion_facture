@@ -1,149 +1,7 @@
-/*const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const app = express();
-const nodemailer = require('nodemailer');
-const port = 5000;
-const connectDB = require('./db'); 
-const connect = require('./db2');
 
-
-app.use(cors());
-app.use(express.json());
-
-connectDB();
-// Créez un schéma pour la collection "facture"
-const factureSchema = new mongoose.Schema({
-  N:Number,
-  Prestataire_fournisseur: String,
-  factureN: String,
-  Datefacture: String,
-  montant: Number,
-  bonCommande: String,
-  transmisDPT: String,
-  transmisDFC: String,
-  observations: String,
-  dateVirement: String,
-  arrivee: String,
-  imputation: String,
-  fichier: String,
-  
-});
-
-// Créez un modèle pour la collection "facture" en utilisant le schéma
-const Facture = mongoose.model('Facture', factureSchema);
-
-// Routes pour récupérer toutes les factures
-app.get('/api/facture', async (req, res) => {
-  try {
-    const factures = await Facture.find({});
-    res.json(factures);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur lors de la récupération des factures' });
-  }
-});
-
-// Route pour ajouter une nouvelle facture
-app.post('/api/facture', async (req, res) => {
-  try {
-    const newFacture = new Facture(req.body);
-    await newFacture.save();
-    res.status(201).json(newFacture);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur lors de l\'ajout de la facture' });
-  }
-});
-
-// Route pour modifier une facture existante
-app.put('/api/facture/:id', async (req, res) => {
-  try {
-    const facture = await Facture.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(facture);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de la facture' });
-  }
-});
-
-// Route pour supprimer une facture existante
-app.delete('/api/facture/:id', async (req, res) => {
-  try {
-    const facture = await Facture.findByIdAndDelete(req.params.id);
-    res.json(facture);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur lors de la suppression de la facture' });
-  }
-});
-
-// Route pour envoyer un e-mail avec une pièce jointe PDF
-app.post('/api/send-email', async (req, res) => {
-  const { filename, filePath, recipientEmail } = req.body;
-
-  const transporter = nodemailer.createTransport({
-    service: 'Outlook',
-    auth: {
-      user: 'hadjerb11@outlook.com', // Remplacez par votre adresse e-mail
-      pass: '112003hadjer' // Remplacez par votre mot de passe
-    }
-  });
-
-  const mailOptions = {
-    from: 'hadjerb11@outlook.com', // Remplacez par votre adresse e-mail
-    to: recipientEmail,
-    subject: 'Tableau PDF',
-    text: 'Veuillez trouver ci-joint le fichier PDF contenant votre tableau.',
-    attachments: [
-      {
-        filename: filename,
-        path: filePath
-      }
-    ]
-  };
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.response);
-    res.status(200).json({ message: 'Email sent successfully' });
-  } catch (error) {
-    console.error('Error sending email:', error);
-    res.status(500).json({ error: 'Error sending email' });
-  }
-});
-
-const prestataireSchema = new mongoose.Schema({
-  Nom_pres: String,
-  Region_pres: String,
-});
-
-connect();
-const Prestataire = mongoose.model('Prestataire', prestataireSchema);
-
-// Ajoutez cette route avant la route POST pour ajouter un prestataire
-app.get('/api/prestataire', async (req, res) => {
-  try {
-    const prestataires = await Prestataire.find({});
-    res.json(prestataires);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur lors de la récupération des prestataires' });
-  }
-});
-
-// Route pour ajouter un nouveau prestataire
-app.post('/api/prestataire', async (req, res) => {
-  try {
-    const newPrestataire = new Prestataire(req.body);
-    await newPrestataire.save();
-    res.status(201).json(newPrestataire);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur lors de l\'ajout de prestataire' });
-  }
-});
-
-
-// Lancez le serveur
-app.listen(port, () => {
-  console.log(`Serveur en écoute sur le port ${port}`);
-});*/
+const path = require('path');
 const express = require('express');
+const multer = require('multer');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const connectDB = require('./db'); 
@@ -152,42 +10,89 @@ const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Répertoire où les fichiers seront stockés
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExtension = path.extname(file.originalname);
+    cb(null, uniqueSuffix + fileExtension); // Nom du fichier téléchargé
+  },
+});
+const upload = multer({ storage });
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
 connectDB();
-
 const userSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
   email: String,
   password: String,
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema);
 
-// Routes
-app.post("/api/auth", async (req, res) => {
+// Route pour l'inscription (signup)
+app.post('/api/users', async (req, res) => {
+  const { firstName, lastName, email, password } = req.body;
+
+  try {
+    // Vérification si l'utilisateur existe déjà
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
+    }
+
+    // Hash du mot de passe avant de le stocker dans la base de données
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Création du nouvel utilisateur
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+    });
+
+    await newUser.save();
+
+    // Génération du token JWT pour l'authentification
+    const token = jwt.sign({ userId: newUser._id }, 'your-secret-key', {
+      expiresIn: '1h',
+    });
+
+    res.status(201).json({ data: token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur interne du serveur.' });
+  }
+});
+
+// Route pour l'authentification (login)
+app.post('/api/auth', async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user._id }, "your-secret-key", {
-      expiresIn: "1h",
+    const token = jwt.sign({ userId: user._id }, 'your-secret-key', {
+      expiresIn: '1h',
     });
 
     res.json({ data: token });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -256,9 +161,11 @@ app.post('/api/prestataire', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de l\'ajout de prestataire' });
   }
 });
-
-
-
+/////////////////////
+app.post('/upload', upload.single('file'), (req, res) => {
+  const imageUrl = `/uploads/${req.file.filename}`; // L'URL de l'image
+  res.json({ imageUrl });
+});
 // Route pour modifier une facture
 app.put('/api/facture/:id', async (req, res) => {
   try {
