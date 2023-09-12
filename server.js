@@ -9,6 +9,7 @@ const app = express();
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { ObjectId } = require('mongodb');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -31,6 +32,7 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   email: String,
   password: String,
+  actif:Boolean,
 });
 
 const User = mongoose.model('User', userSchema);
@@ -46,6 +48,7 @@ app.post('/api/users', async (req, res) => {
       return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
     }
 
+
     // Hash du mot de passe avant de le stocker dans la base de données
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -55,6 +58,7 @@ app.post('/api/users', async (req, res) => {
       lastName,
       email,
       password: hashedPassword,
+      actif:true,
     });
 
     await newUser.save();
@@ -110,6 +114,7 @@ const factureSchema = new mongoose.Schema({
   arrivee: String,
   imputation: String,
   fichier: String,
+  userId:String,
   
 });
 
@@ -151,6 +156,7 @@ app.post('/api/facture', async (req, res) => {
   }
 });
 
+
 // Route pour ajouter un nouveau prestataire
 app.post('/api/prestataire', async (req, res) => {
   try {
@@ -161,6 +167,28 @@ app.post('/api/prestataire', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de l\'ajout de prestataire' });
   }
 });
+
+// Route pour modifier une facture
+app.put('/api/user/:id', async (req, res) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la modification de lutilisateur ' });
+  }
+});
+app.put('/api/user/delete/:id', async (req, res) => {
+  try {
+    req.body.actif = false;
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la modification de lutilisateur ' });
+  }
+});
+
+
+
 /////////////////////
 app.post('/upload', upload.single('file'), (req, res) => {
   const imageUrl = `/uploads/${req.file.filename}`; // L'URL de l'image
@@ -205,6 +233,15 @@ app.delete('/api/prestataire/:id', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la suppression du prestataire' });
   }
 });
+
+app.get('/api/users', async (req, res) => {
+	try {
+	  const users = await User.find({});
+	  res.json(users);
+	} catch (error) {
+	  res.status(500).json({ error: 'Erreur lors de la récupération des factures' });
+	}
+  });
 
 
 const port = 5000;
