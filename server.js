@@ -160,36 +160,75 @@ app.use(bodyParser.json());
 connectDB();
 
 const userSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
   email: String,
   password: String,
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema);
 
-// Routes
-app.post("/api/auth", async (req, res) => {
+// Route pour l'inscription (signup)
+app.post('/api/users', async (req, res) => {
+  const { firstName, lastName, email, password } = req.body;
+
+  try {
+    // Vérification si l'utilisateur existe déjà
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
+    }
+
+    // Hash du mot de passe avant de le stocker dans la base de données
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Création du nouvel utilisateur
+    const newUser = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+    });
+
+    await newUser.save();
+
+    // Génération du token JWT pour l'authentification
+    const token = jwt.sign({ userId: newUser._id }, 'your-secret-key', {
+      expiresIn: '1h',
+    });
+
+    res.status(201).json({ data: token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur interne du serveur.' });
+  }
+});
+
+// Route pour l'authentification (login)
+app.post('/api/auth', async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user._id }, "your-secret-key", {
-      expiresIn: "1h",
+    const token = jwt.sign({ userId: user._id }, 'your-secret-key', {
+      expiresIn: '1h',
     });
 
     res.json({ data: token });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 const factureSchema = new mongoose.Schema({
   N:Number,
@@ -226,6 +265,43 @@ app.get('/api/facture', async (req, res) => {
   }
 });
 
+app.get('/api/facture/next-number', async (req, res) => {
+  try {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+
+    // Trouvez le dernier enregistrement avec un numéro dans le mois et l'année actuels
+    const lastFacture = await Facture.findOne({
+      N: { $exists: true },
+      Datefacture: {
+        $gte: new Date(`${year}-${month}-01`),
+        $lt: new Date(`${year}-${month + 1}-01`),
+      },
+    }).sort({ N: -1 });
+
+    let nextNumber = 1;
+    if (lastFacture) {
+      nextNumber = lastFacture.N + 1;
+    }
+
+    const formattedNumber = `${nextNumber}-${month}/${year}`;
+
+    // Enregistrez le prochain numéro dans la base de données
+    const newFacture = new Facture({
+      N: nextNumber,
+      // ... d'autres champs de facture
+      Datefacture: new Date(),
+    });
+    await newFacture.save();
+
+    res.json({ nextNumber: formattedNumber });
+  } catch (error) {
+    console.error('Erreur lors de la récupération du prochain numéro de facture:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération du prochain numéro de facture' });
+  }
+});
+
 // Route pour consulter tous les prestataires
 app.get('/api/prestataires', async (req, res) => {
   try {
@@ -236,9 +312,31 @@ app.get('/api/prestataires', async (req, res) => {
   }
 });
 // Route pour ajouter une nouvelle facture
-app.post('/api/facture', async (req, res) => {
+/*app.post('/api/facture', async (req, res) => {
   try {
     const newFacture = new Facture(req.body);
+    await newFacture.save();
+    res.status(201).json(newFacture);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de l\'ajout de facture' });
+  }
+});*/
+// Route pour ajouter une nouvelle facture
+app.post('/api/facture', async (req, res) => {
+  try {
+    // Générez la valeur "N" en fonction de la condition id-mois_actuel/annee_actuel
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const generatedN = `${year}-${month}`;
+
+    // Ajoutez la valeur "N" aux données du formulaire
+    const factureData = {
+      ...req.body,
+      N: generatedN,
+    };
+
+    const newFacture = new Facture(factureData);
     await newFacture.save();
     res.status(201).json(newFacture);
   } catch (error) {
@@ -299,6 +397,38 @@ app.delete('/api/prestataire/:id', async (req, res) => {
   }
 });
 
+// Route pour récupérer les factures archivées par année
+app.get('/api/archives/:year', async (req, res) => {
+  const year = req.params.year;
+  try {
+    const factures = await Facture.find({ N: { $regex: `^${year}` } });
+    res.json(factures);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des archives' });
+  }
+});
+
+// Route pour générer et télécharger un fichier CSV pour une année donnée
+app.get('/api/download-csv/:year', async (req, res) => {
+  const year = req.params.year;
+  try {
+    const factures = await Facture.find({ N: { $regex: `^${year}` } });
+    if (factures.length === 0) {
+      return res.status(404).json({ error: 'Aucune archive trouvée pour cette année' });
+    }
+
+    const csvData = "N,Prestataire_fournisseur,factureN,Datefacture,montant,bonCommande,transmisDPT,transmisDFC,observations,dateVirement,arrivee,imputation,fichier\n";
+    factures.forEach((facture) => {
+      csvData += `${facture.N},${facture.Prestataire_fournisseur},${facture.factureN},${facture.Datefacture},${facture.montant},${facture.bonCommande},${facture.transmisDPT},${facture.transmisDFC},${facture.observations},${facture.dateVirement},${facture.arrivee},${facture.imputation},${facture.fichier}\n`;
+    });
+
+    res.setHeader('Content-Disposition', `attachment; filename=factures_${year}.csv`);
+    res.setHeader('Content-Type', 'text/csv');
+    res.send(csvData);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la génération du fichier CSV' });
+  }
+});
 
 const port = 5000;
 app.listen(port, () => {
