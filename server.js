@@ -470,13 +470,14 @@ const userSchema = new mongoose.Schema({
   email: String,
   password: String,
   actif:Boolean,
+  role: String,
 });
 
 const User = mongoose.model('User', userSchema);
 
 // Route pour l'inscription (signup)
 app.post('/api/users', async (req, res) => {
-  const { firstName, lastName, email, password } = req.body;
+  const { firstName, lastName, email, password, role } = req.body;
 
   try {
     // Vérification si l'utilisateur existe déjà
@@ -496,6 +497,7 @@ app.post('/api/users', async (req, res) => {
       email,
       password: hashedPassword,
       actif:true,
+      role,
     });
 
     await newUser.save();
