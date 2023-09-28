@@ -561,6 +561,7 @@ const prestataireSchema = new mongoose.Schema({
   Nom_pres: String,
   Region_pres: String,
   userid: String,
+  selectedUserId: String,
 }); 
 //comment
 const Facture = mongoose.model('Facture', factureSchema);
