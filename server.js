@@ -447,6 +447,9 @@ const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { ObjectId } = require('mongodb');
+//const pdfkit = require('pdfkit');
+//const nodemailer = require('nodemailer');
+//const fs = require('fs');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -683,6 +686,63 @@ app.get('/api/users', async (req, res) => {
 	  res.status(500).json({ error: 'Erreur lors de la récupération des factures' });
 	}
   });
+
+  /*app.post('/send-email', (req, res) => {
+    // Récupérez les données de la requête client (par exemple, le numéro de début et de fin)
+    const { startNum, endNum } = req.body;
+  
+    // Générez le PDF dynamiquement
+    const doc = new pdfkit();
+    doc.text(`Factures de ${startNum} à ${endNum}`);
+    // Ajoutez le contenu du PDF en fonction des données
+  
+    const pdfFileName = `temp-pdf-${Date.now()}.pdf`;
+    const pdfFilePath = path.join(__dirname, 'temp', pdfFileName);
+  
+    doc.pipe(fs.createWriteStream(pdfFilePath));
+    doc.end();
+  
+    
+    const transporter = nodemailer.createTransport({
+      service: 'Outlook', // Utilisez le service Outlook
+      auth: {
+        user: 'hadjerb11@outlook.com', // Remplacez par votre adresse e-mail Outlook
+        pass: '', // Remplacez par votre mot de passe Outlook
+      },
+    });
+    const mailOptions = {
+      from: 'hadjerb11@outlook.com',
+  to: 'hadjern224@gmail.com', // Adresse e-mail du destinataire
+  subject: 'Sujet de l\'e-mail',
+  text: 'Contenu du message',
+      attachments: [
+        {
+          filename: 'facture.pdf',
+          path: pdfFilePath, // Chemin du PDF temporaire
+        },
+      ],
+    };
+  
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Erreur lors de l\'envoi de l\'e-mail :', error);
+        res.status(500).json({ message: 'Erreur lors de l\'envoi de l\'e-mail' });
+      } else {
+        console.log('E-mail envoyé :', info.response);
+        res.json({ message: 'E-mail envoyé avec succès' });
+  
+        // Supprimez le PDF temporaire après l'envoi
+        fs.unlink(pdfFilePath, (unlinkError) => {
+          if (unlinkError) {
+            console.error('Erreur lors de la suppression du PDF temporaire :', unlinkError);
+          } else {
+            console.log('PDF temporaire supprimé');
+          }
+        });
+      }
+    });
+  });*/
+  
 
 
 const port = 5000;
