@@ -563,13 +563,21 @@ const factureSchema = new mongoose.Schema({
 const prestataireSchema = new mongoose.Schema({
   Nom_pres: String,
   Region_pres: String,
-  userid: String,
+  userid:String,
+  lieux:String,
   selectedUserId: String,
-}); 
+
+});
+
+  
 //comment
 const Facture = mongoose.model('Facture', factureSchema);
 const Prestataire = mongoose.model('Prestataire', prestataireSchema);
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.get('/uploads/:filename', (req, res) => {
+  const { filename } = req.params;
+  res.sendFile(path.join(__dirname, 'uploads', filename));
+});
 // Routes pour récupérer toutes les factures
 app.get('/api/facture', async (req, res) => {
   try {
