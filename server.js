@@ -543,11 +543,11 @@ app.post('/api/auth', async (req, res) => {
 });
 
 const factureSchema = new mongoose.Schema({
-  N:Number,
+  N: String,
   Prestataire_fournisseur: String,
   factureN: String,
   Datefacture: String,
-  montant: Number,
+  montant: String,
   bonCommande: String,
   transmisDPT: String,
   transmisDFC: String,
@@ -569,6 +569,32 @@ const prestataireSchema = new mongoose.Schema({
 
 });
 
+const numberSchema = new mongoose.Schema({
+  code: String,
+});
+
+const Number = mongoose.model('Number', numberSchema);
+
+app.post('/ajouter-entree', async (req, res) => {
+  try {
+    const date = new Date();
+    const code = `${req.body.count}-${date.getMonth() + 1}/${date.getFullYear()}`;
+    const newNumber = new Number({ code });
+    await newNumber.save();
+    res.status(201).json({ message: 'Numéro ajouté avec succès' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de l\'ajout du numéro' });
+  }
+});
+
+app.get('/obtenir-numeros', async (req, res) => {
+  try {
+    const numbers = await Number.find().exec();
+    res.status(200).json(numbers);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des numéros' });
+  }
+});
   
 //comment
 const Facture = mongoose.model('Facture', factureSchema);
